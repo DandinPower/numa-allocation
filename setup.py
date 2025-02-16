@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from torch.utils.cpp_extension import BuildExtension, CppExtension
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
     name='numa_allocation',
@@ -8,9 +8,9 @@ setup(
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     ext_modules=[
-        CppExtension(
+        CUDAExtension(
             name='numa_allocation.allocation',
-            sources=['src/numa_allocation/allocation.cpp'],
+            sources=['src/numa_allocation/allocation.cu'],
             extra_link_args=['-lnuma']
         )
     ],
