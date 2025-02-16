@@ -10,12 +10,8 @@
 torch::Tensor zeros_numa_onnode(
     at::IntArrayRef sizes,
     at::ScalarType dtype,
-    at::Device device,
     std::vector<int64_t> priority_nodes) {
 
-  if (device.type() != at::kCPU) {
-    throw std::runtime_error("Only CPU device is supported.");
-  }
   if (dtype != at::kBFloat16 && dtype != at::kHalf && dtype != at::kFloat) {
     throw std::runtime_error("Unsupported dtype. Only bfloat16, float16, and float32 are supported.");
   }
@@ -66,7 +62,7 @@ torch::Tensor zeros_numa_onnode(
   };
 
   // Create tensor using the allocated memory.
-  auto options = torch::TensorOptions().dtype(dtype).device(device);
+  auto options = torch::TensorOptions().dtype(dtype).device(at::kCPU);
   auto tensor = torch::from_blob(ptr, sizes, deleter, options);
   return tensor;
 }
