@@ -1,7 +1,7 @@
 import os
 import subprocess
 import torch
-from numa_allocation import zeros_numa_onnode_cpu
+from numa_allocation import zeros_numa_onnode_cpu, zeros_numa_on_nodemask_cpu
 
 def run_command(cmd: list[str]) -> str:
     """
@@ -45,6 +45,12 @@ def test_pin_memory() -> None:
     tensor = zeros_numa_onnode_cpu(shape=shape, dtype=dtype, pin_memory=True)
     assert tensor.is_pinned(), "Tensor should be pinned when pin_memory is True."
     
+    tensor = zeros_numa_on_nodemask_cpu(shape=shape, dtype=dtype, pin_memory=False, interleave_numa_nodes=[0])
+    assert not tensor.is_pinned(), "Tensor should not be pinned when pin_memory is False."
+    
+    tensor = zeros_numa_on_nodemask_cpu(shape=shape, dtype=dtype, pin_memory=True, interleave_numa_nodes=[0])
+    assert tensor.is_pinned(), "Tensor should be pinned when pin_memory is True."
+    
     print("Passed test_pin_memory!\n")
 
 def test_tensor_metadata() -> None:
@@ -66,6 +72,12 @@ def test_tensor_metadata() -> None:
         assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
         assert torch.all(tensor == 0), "Tensor is not zero-initialized."
     
+    for dtype in dtypes:
+        tensor = zeros_numa_on_nodemask_cpu(shape=shape, dtype=dtype, pin_memory=False, interleave_numa_nodes=[0])
+        assert tensor.dtype == dtype, f"Expected dtype {dtype}, got {tensor.dtype}"
+        assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
+        assert torch.all(tensor == 0), "Tensor is not zero-initialized."
+ 
     print("Passed test_tensor_metadata!\n")
 
 def test_priority_numa_nodes_default() -> None:
@@ -197,6 +209,58 @@ def test_priority_numa_nodes_with_invalid_nodes() -> None:
     del tensor
     print("Passed test_priority_numa_nodes_with_invalid_nodes!\n")
 
+def test_zeros_numa_on_nodemask_cpu_with_one_nodes() -> None:
+    """
+    Test zeros_numa_on_nodemask_cpu allocation with a single NUMA node.
+
+    Example output:
+        Per-node process memory usage (in MBs) for PID <pid> (python)
+                Node 0 Node 1 Node 2 Node 3 Node 4 Total
+                ------ ------ ------ ------ ------ -----
+        Huge          0      0      0      0      0     0
+        Heap         17     17     17     17     17    86
+        Stack         0      0      0      0      0     0
+        Private    4274     27     28     24     24  4377
+        -------  ------ ------ ------ ------ ------ -----
+        Total      4291     45     45     41     41  4463
+    """
+    print("Running test_zeros_numa_on_nodemask_cpu_with_one_node...")
+    shape = (1024, 1024, 1024)
+    dtype = torch.float
+
+    tensor = zeros_numa_on_nodemask_cpu(
+        shape=shape, dtype=dtype, pin_memory=False, interleave_numa_nodes=[0]
+    )
+    print("numastat output:\n", get_numastat_output())
+    del tensor
+    print("Passed test_zeros_numa_on_nodemask_cpu_with_one_node!\n")
+
+def test_zeros_numa_on_nodemask_cpu_with_multiple_nodes() -> None:
+    """
+    Test zeros_numa_on_nodemask_cpu allocation with multiple NUMA nodes.
+
+    Example output:
+        Per-node process memory usage (in MBs) for PID 1663157 (python)
+                Node 0 Node 1 Node 2 Node 3 Node 4 Total
+                ------ ------ ------ ------ ------ -----
+        Huge          0      0      0      0      0     0
+        Heap         20     20     20     20     20   101
+        Stack         0      0      0      0      0     0
+        Private    2253   2096     45     42     41  4478
+        -------  ------ ------ ------ ------ ------ -----
+        Total      2273   2116     66     62     61  4579
+    """
+    print("Running test_zeros_numa_on_nodemask_cpu_with_multiple_nodes...")
+    shape = (1024, 1024, 1024)
+    dtype = torch.float
+
+    tensor = zeros_numa_on_nodemask_cpu(
+        shape=shape, dtype=dtype, pin_memory=False, interleave_numa_nodes=[0, 1]
+    )
+    print("numastat output:\n", get_numastat_output())
+    del tensor
+    print("Passed test_zeros_numa_on_nodemask_cpu_with_multiple_nodes!\n")
+
 def main() -> None:
     """
     Run all test cases sequentially and report the results.
@@ -204,6 +268,8 @@ def main() -> None:
     test_functions = [
         test_pin_memory,
         test_tensor_metadata,
+        test_zeros_numa_on_nodemask_cpu_with_one_nodes,
+        test_zeros_numa_on_nodemask_cpu_with_multiple_nodes
         test_priority_numa_nodes_default,
         test_priority_numa_nodes_with_one_value,
         test_priority_numa_nodes_with_multiple_value,
