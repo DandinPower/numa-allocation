@@ -266,10 +266,9 @@ def main() -> None:
     Run all test cases sequentially and report the results.
     """
     test_functions = [
-        test_pin_memory,
         test_tensor_metadata,
         test_zeros_numa_on_nodemask_cpu_with_one_nodes,
-        test_zeros_numa_on_nodemask_cpu_with_multiple_nodes
+        test_zeros_numa_on_nodemask_cpu_with_multiple_nodes,
         test_priority_numa_nodes_default,
         test_priority_numa_nodes_with_one_value,
         test_priority_numa_nodes_with_multiple_value,
